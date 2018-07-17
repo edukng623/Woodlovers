@@ -4,7 +4,7 @@ using System.Drawing.Imaging;
 namespace Halftoner
 {
 	public class MitchellFilter
-	{
+	{  
 		private int KernelRadius = 3;
 
 		private int[] FilterKernel;
