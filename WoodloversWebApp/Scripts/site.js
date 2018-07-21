@@ -1,21 +1,61 @@
-﻿function onFileSelected(event) {
+﻿function postToS3() {
+    var image = $("#preview-image").attr("src");
+    // Split the base64 string in data and contentType
+    const block = image.split(";");
+    // Get the content type of the image
+    const contentType = block[0].split(":")[1];// In this case "image/gif"
+    // get the real base64 content of the file
+    const realData = block[1].split(",")[1];// In this case "R0lGODlhPQBEAPeoAJosM...."
+
+    // Convert it to a blob to upload
+    const blob = b64toBlob(realData, contentType);
+
+    const formDataToUpload = new FormData();
+    formDataToUpload.append("image", blob);
+
+    $.ajax({
+        type: "POST",
+        url: '/api/Halftoner/PostToS3',
+        contentType: false,
+        processData: false,
+        data: formDataToUpload,
+        success: function (result) {
+            console.log(result);
+        },
+        error: function (xhr, status, p3, p4) {
+            var err = "Error " + " " + status + " " + p3 + " " + p4;
+            if (xhr.responseText && xhr.responseText[0] == "{")
+                err = JSON.parse(xhr.responseText).Message;
+            console.log(err);
+        }
+    });
+}
+function onFileSelected(event) {
+    
+
     const loading = $("#loading-div");
     const selectedFile = event.target.files[0];
+    const imageContainer = $("#image-container");
     preview(selectedFile);
-    //const reader = new FileReader();
-    
-    //loading.show();
-    //reader.onload = function (event) {
-    //    preview(event.target.result);
-    //};
+    imageContainer.hide();
+    loading.show();
 
-    //reader.readAsDataURL(selectedFile);
+    const reader = new FileReader();
+    
+    reader.onload = function (event) {
+        const imgtag = document.getElementById("preview-image");
+        imgtag.src = event.target.result;
+        imageContainer.show();
+        loading.hide();
+    };
+
+    reader.readAsDataURL(selectedFile);
 }
 function preview(file) {
-    const loading = $("#loading-div");
-    const imageContainer = $("#image-container");
-    const imgtag = document.getElementById("preview-image");
-    imageContainer.hide();
+    //const loading = $("#loading-div");
+    //const imageContainer = $("#image-container");
+    //const imgtag = document.getElementById("preview-image");
+    //imageContainer.hide();
 
     
     //// Split the base64 string in data and contentType
@@ -29,17 +69,23 @@ function preview(file) {
     //const blob = b64toBlob(realData, contentType);
 
     // Create a FormData and append the file with "image" as parameter name
+    const loading = $("#loading-div-halftoner");
+    const imageContainer = $("#image-container-halftoner");
     
+    loading.show();
+
     const formDataToUpload = new FormData();
     formDataToUpload.append("image", file);
     $.ajax({
         type: "POST",
-        url: 'api/Halftoner',
+        url: '/api/Halftoner/Edit',
         contentType: false,
         processData: false,
         data: formDataToUpload,
         success: function (result) {
-            console.log(result);
+            imageContainer.show();
+            $("#preview-image-haltoner").attr("src", 'data:image/png;base64,' + result);
+            loading.hide();
         },
         error: function (xhr, status, p3, p4) {
             var err = "Error " + " " + status + " " + p3 + " " + p4;

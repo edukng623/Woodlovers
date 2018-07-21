@@ -8,9 +8,19 @@
 
 <div class="loading-container" style="display: none;" id="loading-div">
     <div class="loading"></div>
-    <div id="loading-text">loading</div>
+    <div id="loading-text">Original</div>
 </div>
 
-<div style="display: none;" id="image-container">
-    <img id="preview-image" height="600" width="600">
+<div style="display: none;" id="image-container" >
+    <img id="preview-image" height="400" width="200" class="img-responsive center-block">
+</div>
+
+<div class="loading-container" style="display: none;" id="loading-div-halftoner">
+    <div class="loading"></div>
+    <div id="loading-text">Preview</div>
+</div>
+
+<div style="display: none;" id="image-container-halftoner" >
+    <img id="preview-image-haltoner" height="400" width="200" class="img-responsive center-block">
+    <button onclick="postToS3()"  class="btn-success">Post to S3</button>
 </div>

@@ -1,4 +1,7 @@
-﻿body {
+﻿.img-responsive {
+    margin: 0 auto;
+}
+body {
     padding-top: 50px;
     padding-bottom: 20px;
 }
@@ -67,18 +70,18 @@ input[type="file"] {
         transition: color 0.5s ease-out;
     }
 
-#preview-image {
+#preview-image, preview-image-haltoner {
     border-radius: 10px;
 }
 
-#image-container {
+#image-container, image-container-halftoner {
     margin: 15px;
 }
 
 img {
     display: block;
-    max-width: 600px;
-    max-height: 500px;
+    max-width: 400px;
+    max-height: 300px;
     width: auto;
     height: auto;
 }
