@@ -12,7 +12,8 @@
 
     const formDataToUpload = new FormData();
     formDataToUpload.append("image", blob);
-
+    const name = $("#file-name").val();
+    formDataToUpload.append("name", name);
     $.ajax({
         type: "POST",
         url: '/api/Halftoner/PostToS3',

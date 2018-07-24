@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Amazon.S3;
+using Amazon.S3.Transfer;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,11 +10,14 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
+using System.Web.ModelBinding;
+using System.Web;
+using Amazon.S3.Model;
 
-using System.Web.Mvc;
 namespace WoodloversWebApp.Controllers
 {
     public class HalftonerController : ApiController
@@ -48,23 +53,26 @@ namespace WoodloversWebApp.Controllers
             {
                 // Read the form data.
                 await Request.Content.ReadAsMultipartAsync(provider);
-
+                string system = Environment.GetEnvironmentVariable("DEV_SYSTEM");
+                string cfgFile = "Halftoner.cfg";
+                if (!String.IsNullOrEmpty(system))
+                {
+                    cfgFile = "dev_halftoner.cfg";
+                }
+                
                 //// This illustrates how to get the file names.
                 foreach (MultipartFileData file in provider.FileData)
                 {
-                    Trace.WriteLine(file.Headers.ContentDisposition.FileName);
-                    Trace.WriteLine("Server file path: " + file.LocalFileName);
+                    
+                    var client = new AmazonS3Client(Amazon.RegionEndpoint.USEast1);
+                    var transferUtility = new TransferUtility(new AmazonS3Client(Amazon.RegionEndpoint.USEast1));
+
                     var bytes = File.ReadAllBytes(file.LocalFileName);
                     using (var ms = new MemoryStream(bytes))
+                    using (Bitmap bitmap = new Bitmap(ms))
+                    using (var fileStream = transferUtility.OpenStream("woodlovers.orders", cfgFile) )
                     {
-                        Bitmap bitmap = new Bitmap(ms);
-                        string appdatafolder = Path.Combine(HttpContext.Current.Request.PhysicalApplicationPath, "App_Data");
-                        string path = Path.Combine(appdatafolder, "Halftoner.cfg");
-                        Bitmap half = new Halftoner.MainForm(path).Convert(bitmap);
-                        half.Save(root + @"\test.jpeg");
-
-                        //return Request.CreateResponse(HttpStatusCode.OK, half, "image/png");
-                        Image img = half;
+                        using (Image img = (new Halftoner.MainForm("Not used for now", fileStream)).Convert(bitmap))
                         using (MemoryStream outStream = new MemoryStream())
                         {
                             img.Save(outStream, System.Drawing.Imaging.ImageFormat.Png);
@@ -72,7 +80,6 @@ namespace WoodloversWebApp.Controllers
                             HttpResponseMessage result = new HttpResponseMessage(HttpStatusCode.OK);
                             string base64String = Convert.ToBase64String(outStream.ToArray());
                             result.Content = new StringContent(base64String);
-                            //result.Content.Headers.ContentType = new MediaTypeHeaderValue("image/png");
 
                             return result;
                         }
@@ -83,7 +90,7 @@ namespace WoodloversWebApp.Controllers
             }
             catch (Exception e)
             {
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, e);
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, e.Message);
             }
         }
         [System.Web.Mvc.HttpPost]
@@ -97,23 +104,35 @@ namespace WoodloversWebApp.Controllers
 
             string root = HttpContext.Current.Server.MapPath("~/App_Data");
             var provider = new MultipartFormDataStreamProvider(root);
-
+            
             try
             {
                 // Read the form data.
                 await Request.Content.ReadAsMultipartAsync(provider);
-
+                String name = provider.FormData["name"];
+                if (String.IsNullOrEmpty(name))
+                {
+                    return Request.CreateResponse(HttpStatusCode.BadRequest, "File is empty or not exists");
+                }
                 //// This illustrates how to get the file names.
                 foreach (MultipartFileData file in provider.FileData)
                 {
                     Trace.WriteLine(file.Headers.ContentDisposition.FileName);
                     Trace.WriteLine("Server file path: " + file.LocalFileName);
+
+                    var transferUtility = new TransferUtility(new AmazonS3Client(Amazon.RegionEndpoint.USEast1));
                     
+                    using (FileStream fs = new FileStream(file.LocalFileName, FileMode.Open, FileAccess.Read))
+                    {
+                        //var name = Request.GetQueryNameValuePairs().
+                        await transferUtility.UploadAsync(fs, "woodlovers.orders", name);
+                        return Request.CreateResponse(HttpStatusCode.OK, "Good");
+                    }
                 }
 
 
+                return Request.CreateResponse(HttpStatusCode.BadRequest, "File could not be saved or no file at all");
 
-                return Request.CreateResponse(HttpStatusCode.OK, "Good");
             }
             catch (Exception e)
             {

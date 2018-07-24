@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -27,7 +28,7 @@ namespace Halftoner
             DXF,
             PNG
         }
-
+    
         private const double PI = 3.1415926535897931;
 
         private const double TwoPI = 6.2831853071795862;
@@ -275,9 +276,14 @@ namespace Halftoner
         private CheckBox cbGrblCompat;
 
         private String configPath;
-        public MainForm(String configPath)
+        private Stream stream;
+
+        
+
+        public MainForm(String configPath, Stream stream)
         {
             this.configPath = configPath;
+            this.stream = stream;
             InitializeComponent();
             pbPreview.Visible = false;
             lblDirections.Visible = true;
@@ -1807,10 +1813,44 @@ namespace Halftoner
 
         private void LoadSettings()
         {
+//            String s = "";
+//            s += "<HalftoneConfig><Units Value=\"inch\" /><Width Value=\"35,1841478234375\" />";
+//            s += "<Height Value=\"21,49531531088134765625\" />";
+//            s += "<Border Value=\"0,000\" />" +
+//   "<Spacing Value=\"0,175\" />" +
+//  "<MinSize Value=\"0\" />" +
+//  "<MaxSize Value=\"0,1650\" />" +
+//  "<Angle Value=\"0\" />" +
+//  "<Wavelength Value=\"2,0\" />" +
+//  "<Amplitude Value=\"0\" />" +
+//  "<CenterOffsX Value=\"0\" />" +
+//  "<CenterOffsY Value=\"0\" />" +
+//  "<DarkBoost Value=\"False\" />" +
+//  "<OffsetOdd Value=\"True\" />" +
+//  "<Invert Value=\"False\" />" +
+//  "<Style Value=\"Lines\" />" +
+//  "<RandomDots Value=\"1000\" />" +
+//  "<SafeZ Value=\"0,25\" />" +
+//  "<UsePointRetract Value=\"False\" />" +
+//  "<PointRetract Value=\"0,25\" />" +
+//  "<FeedRate Value=\"50\" />" +
+//  "<ToolAngle Value=\"90\" />" +
+//  "<SpindleRPM Value=\"30000\" />" +
+//  "<EngraveDepth Value=\"0\" />" +
+//  "<TwoPass Value=\"False\" />" +
+//  "<LineNumbers Value=\"True\" />" +
+//  "<GrblCompat Value=\"False\" />" +
+//  "<ZOffset Value=\"0\" />" +
+//  "<OriginX Value=\"0\" />" +
+//  "<OriginY Value=\"0\" />" +
+//  "<LockAspect Value=\"True\" />" +
+//"</HalftoneConfig>";
+            
             try
             {
                 XmlDocument xmlDocument = new XmlDocument();
-                xmlDocument.Load(GetConfigName());
+                xmlDocument.Load(this.stream); // Load from stream
+                //xmlDocument.Load(GetConfigName());
                 XmlElement xmlElement = xmlDocument["HalftoneConfig"];
                 if (xmlElement != null)
                 {
@@ -1876,11 +1916,16 @@ namespace Halftoner
                     InternalChange = false;
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Trace.WriteLine("Error loading settings: " + e.Message);
+                Console.WriteLine("Error loading settings: " + e.Message);
+                
+                throw e;
             }
             finally
             {
+                if (stream != null) stream.Dispose();
                 InternalChange = false;
             }
         }
