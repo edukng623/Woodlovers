@@ -17,9 +17,11 @@ using System.Web.Http;
 using System.Web.ModelBinding;
 using System.Web;
 using Amazon.S3.Model;
+using System.Web.Http.Cors;
 
 namespace WoodloversWebApp.Controllers
 {
+    [EnableCors(origins: "http://www.woodlovers.pt", headers: "*", methods: "*")]
     public class HalftonerController : ApiController
     {
         
@@ -54,12 +56,12 @@ namespace WoodloversWebApp.Controllers
                 // Read the form data.
                 await Request.Content.ReadAsMultipartAsync(provider);
                 string system = Environment.GetEnvironmentVariable("DEV_SYSTEM");
-                string cfgFile = "Halftoner.cfg";
+                string cfgFile = provider.FormData["settings-file"];
                 if (!String.IsNullOrEmpty(system))
                 {
                     cfgFile = "dev_halftoner.cfg";
                 }
-                
+
                 //// This illustrates how to get the file names.
                 foreach (MultipartFileData file in provider.FileData)
                 {

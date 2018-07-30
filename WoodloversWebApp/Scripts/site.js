@@ -14,6 +14,7 @@
     formDataToUpload.append("image", blob);
     const name = $("#file-name").val();
     formDataToUpload.append("name", name);
+    
     $.ajax({
         type: "POST",
         url: '/api/Halftoner/PostToS3',
@@ -77,6 +78,7 @@ function preview(file) {
 
     const formDataToUpload = new FormData();
     formDataToUpload.append("image", file);
+    formDataToUpload.append("settings-file", "Halftoner_60_90.cfg");
     $.ajax({
         type: "POST",
         url: '/api/Halftoner/Edit',
