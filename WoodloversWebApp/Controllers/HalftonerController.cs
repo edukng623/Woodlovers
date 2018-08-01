@@ -1,22 +1,15 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Transfer;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
-using System.Web.ModelBinding;
-using System.Web;
-using Amazon.S3.Model;
 using System.Web.Http.Cors;
 
 namespace WoodloversWebApp.Controllers
@@ -41,7 +34,7 @@ namespace WoodloversWebApp.Controllers
         [System.Web.Mvc.HttpPost]
         public async Task<HttpResponseMessage> Edit()
         {
-
+            // CleanUpData();
             // Check if the request contains multipart/form-data.
             if (!Request.Content.IsMimeMultipartContent())
             {
@@ -95,9 +88,30 @@ namespace WoodloversWebApp.Controllers
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, e.Message);
             }
         }
+        private void CleanUpData()
+        {
+            string root = HttpContext.Current.Server.MapPath("~/App_Data");
+            CleanTempFiles(root, 3);
+        }
+        private void CleanTempFiles(string dir, int ageInMinutes)
+        {
+            string[] files = Directory.GetFiles(dir);
+
+            foreach (string file in files)
+            {
+                var time = File.GetCreationTime(file);
+
+                if (time.AddMinutes(ageInMinutes) < DateTime.Now)
+                {
+                    File.Delete(file);
+                }
+            }
+        }
+
         [System.Web.Mvc.HttpPost]
         public async Task<HttpResponseMessage> PostToS3()
         {
+            // CleanUpData();
             // Check if the request contains multipart/form-data.
             if (!Request.Content.IsMimeMultipartContent())
             {
@@ -121,15 +135,24 @@ namespace WoodloversWebApp.Controllers
                 {
                     Trace.WriteLine(file.Headers.ContentDisposition.FileName);
                     Trace.WriteLine("Server file path: " + file.LocalFileName);
-
-                    var transferUtility = new TransferUtility(new AmazonS3Client(Amazon.RegionEndpoint.USEast1));
+                    var client = new AmazonS3Client(Amazon.RegionEndpoint.USEast1);
+                    var transferUtility = new TransferUtility(client);
                     
-                    using (FileStream fs = new FileStream(file.LocalFileName, FileMode.Open, FileAccess.Read))
+                    var permission = S3CannedACL.AuthenticatedRead;
+                    if (name.StartsWith("tmp/"))
                     {
-                        //var name = Request.GetQueryNameValuePairs().
-                        await transferUtility.UploadAsync(fs, "woodlovers.orders", name);
-                        return Request.CreateResponse(HttpStatusCode.OK, "Good");
+                        permission = S3CannedACL.PublicRead;
                     }
+                    var uploadRequest = new TransferUtilityUploadRequest();
+                    uploadRequest.FilePath = file.LocalFileName;
+                    uploadRequest.BucketName = "woodlovers.orders";
+                    uploadRequest.Key = name;
+                    uploadRequest.CannedACL = permission;
+                        
+                    await transferUtility.UploadAsync(uploadRequest);
+                    
+                    return Request.CreateResponse(HttpStatusCode.OK, "Good");
+                    
                 }
 
 
@@ -138,10 +161,41 @@ namespace WoodloversWebApp.Controllers
             }
             catch (Exception e)
             {
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, e);
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, e.Message);
             }
 
             
+        }
+        [System.Web.Mvc.HttpPost]
+        public async Task<HttpResponseMessage> PostOrder()
+        {
+            string root = HttpContext.Current.Server.MapPath("~/App_Data");
+            var provider = new MultipartFormDataStreamProvider(root);
+            try
+            {
+                // Read the form data.
+                await Request.Content.ReadAsMultipartAsync(provider);
+                String orderNumber = provider.FormData["order"];
+                String files = provider.FormData["files"];
+                String[] fileIds = files.Split('@');
+                var client = new AmazonS3Client(Amazon.RegionEndpoint.USEast1);
+                // var transferUtility = new TransferUtility(client);
+
+                foreach (var id in fileIds)
+                {
+                    String tempName = id;
+                    if (id.Contains("_"))
+                    {
+                        tempName = id.Split('_')[0];
+                    }
+                    await client.CopyObjectAsync("woodlovers.orders", "tmp/" + tempName, "woodlovers.orders", "/orders/" + orderNumber + "/" + id);
+                }
+                return Request.CreateResponse(HttpStatusCode.OK, "Posted Order");
+            }
+            catch (Exception e)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, e.Message);
+            }
         }
         // PUT: api/Halftoner/5
         public void Put(int id, [FromBody]string value)
